@@ -2,10 +2,12 @@
 <html lang="zh-CN">
 <head>
     <meta charset="utf-8">
-    <title>渐变爱心尾迹特效（本地视频）</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>点击渐变爱心尾迹特效</title>
     <link rel="shortcut icon" href="http://zhouql.vip/images/心.png" type="image/x-icon">
     <style>
-        /* 全局重置 */
+        /* 强制全局样式 */
+        *, *::before, *::after { box-sizing: border-box; }
         html, body {
             margin: 0;
             padding: 0;
@@ -13,17 +15,17 @@
             height: 100%;
             overflow: hidden;
             background: #000;
-            cursor: pointer;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
+            font-family: sans-serif;
+            touch-action: none; /* 防止移动端滚动 */
         }
 
-        /* 视频背景（最底层） */
+        /* 视频背景 */
         #main {
             position: fixed;
             top: 0; left: 0;
             width: 100%; height: 100%;
             z-index: 1;
+            pointer-events: none; /* 允许点击穿透 */
         }
         #video1 {
             width: 100%;
@@ -31,31 +33,44 @@
             object-fit: cover;
         }
 
-        /* 粒子画布（最上层） */
-        canvas {
+        /* 粒子画布（最上层 + 可点击） */
+        #heartCanvas {
             position: fixed;
             top: 0; left: 0;
             width: 100%; height: 100%;
             z-index: 999;
             pointer-events: auto;
+            background: transparent;
         }
     </style>
 </head>
 <body>
 
-    <!-- 背景视频（使用本地文件） -->
+    <!-- 背景视频（本地） -->
     <div id="main">
         <video id="video1" muted autoplay loop playsinline>
             <source src="./love-bg.mp4" type="video/mp4">
-            您的浏览器不支持视频播放。
+            您的浏览器不支持视频。
         </video>
     </div>
 
-    <!-- 粒子特效画布 -->
+    <!-- 特效画布 -->
     <canvas id="heartCanvas"></canvas>
 
     <script>
-        // ==================== 可配置参数 ====================
+        // ==================== 强制初始化画布 ====================
+        const canvas = document.getElementById('heartCanvas');
+        const ctx = canvas.getContext('2d', { alpha: true });
+
+        function initCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            console.log('Canvas 初始化:', canvas.width, 'x', canvas.height);
+        }
+        initCanvas();
+        window.addEventListener('resize', initCanvas);
+
+        // ==================== 配置 ====================
         const CONFIG = {
             particles: {
                 maxCount: 1000,
@@ -71,63 +86,26 @@
         // ==================== requestAnimationFrame 兼容 ====================
         (function() {
             if (!window.requestAnimationFrame) {
-                const vendors = ['ms', 'moz', 'webkit', 'o'];
-                for (let i = 0; i < vendors.length && !window.requestAnimationFrame; ++i) {
-                    window.requestAnimationFrame = window[vendors[i] + 'RequestAnimationFrame'];
-                    window.cancelAnimationFrame = window[vendors[i] + 'CancelAnimationFrame'] || window[vendors[i] + 'CancelRequestAnimationFrame'];
-                }
-                if (!window.requestAnimationFrame) {
-                    let lastTime = 0;
-                    window.requestAnimationFrame = function(callback) {
-                        const now = Date.now();
-                        const nextTime = Math.max(lastTime + 16, now);
-                        return setTimeout(() => callback(lastTime = nextTime), nextTime - now);
-                    };
-                    window.cancelAnimationFrame = clearTimeout;
-                }
+                window.requestAnimationFrame = (cb) => setTimeout(cb, 16);
+                window.cancelAnimationFrame = clearTimeout;
             }
         })();
 
-        // ==================== 向量类 ====================
+        // ==================== 向量 ====================
         class Vec2 {
-            constructor(x = 0, y = 0) {
-                this.x = x;
-                this.y = y;
-            }
+            constructor(x = 0, y = 0) { this.x = x; this.y = y; }
             clone() { return new Vec2(this.x, this.y); }
             len() { return Math.hypot(this.x, this.y); }
-            normalize() {
-                const l = this.len();
-                if (l > 0) { this.x /= l; this.y /= l; }
-                return this;
-            }
+            normalize() { const l = this.len(); if (l > 0) { this.x /= l; this.y /= l; } return this; }
             scale(s) { this.x *= s; this.y *= s; return this; }
             add(v) { this.x += v.x; this.y += v.y; return this; }
         }
 
-        // ==================== 粒子类（带尾迹） ====================
+        // ==================== 粒子（带尾迹） ====================
         class Particle {
-            constructor() {
-                this.reset();
-                this.trail = [];
-                this.maxTrail = 10;
-            }
-            reset() {
-                this.pos = new Vec2();
-                this.vel = new Vec2();
-                this.age = 0;
-                this.active = false;
-                this.trail = [];
-            }
-            init(x, y, vx, vy) {
-                this.pos.x = x;
-                this.pos.y = y;
-                this.vel.x = vx;
-                this.vel.y = vy;
-                this.age = 0;
-                this.active = true;
-                this.trail = [];
-            }
+            constructor() { this.reset(); this.trail = []; this.maxTrail = 10; }
+            reset() { this.pos = new Vec2(); this.vel = new Vec2(); this.age = 0; this.active = false; this.trail = []; }
+            init(x, y, vx, vy) { this.pos.x = x; this.pos.y = y; this.vel.x = vx; this.vel.y = vy; this.age = 0; this.active = true; this.trail = []; }
             update(dt) {
                 if (!this.active) return;
                 this.pos.x += this.vel.x * dt;
@@ -135,10 +113,8 @@
                 this.vel.x += this.vel.x * CONFIG.effect * dt;
                 this.vel.y += this.vel.y * CONFIG.effect * dt;
                 this.age += dt;
-
                 this.trail.push(this.pos.clone());
                 if (this.trail.length > this.maxTrail) this.trail.shift();
-
                 if (this.age >= CONFIG.particles.duration) this.active = false;
             }
             draw(ctx, heartCanvas) {
@@ -149,21 +125,17 @@
 
                 // 尾迹
                 for (let i = 0; i < this.trail.length; i++) {
-                    const trailAge = t - (i / this.maxTrail);
-                    if (trailAge < 0) continue;
-                    const trailAlpha = (1 - trailAge) * 0.3;
-                    const trailSize = size * (i / this.maxTrail) * 0.3;
-                    ctx.save();
-                    ctx.globalAlpha = trailAlpha;
-                    ctx.drawImage(heartCanvas, this.trail[i].x - trailSize / 2, this.trail[i].y - trailSize / 2, trailSize, trailSize);
-                    ctx.restore();
+                    const trailT = t - i / this.maxTrail;
+                    if (trailT < 0) continue;
+                    const alpha = (1 - trailT) * 0.3;
+                    const s = size * (i / this.maxTrail) * 0.3;
+                    ctx.globalAlpha = alpha;
+                    ctx.drawImage(heartCanvas, this.trail[i].x - s/2, this.trail[i].y - s/2, s, s);
                 }
 
-                // 当前爱心
-                ctx.save();
+                // 当前
                 ctx.globalAlpha = (1 - t) * 0.8;
-                ctx.drawImage(heartCanvas, this.pos.x - size / 2, this.pos.y - size / 2, size, size);
-                ctx.restore();
+                ctx.drawImage(heartCanvas, this.pos.x - size/2, this.pos.y - size/2, size, size);
             }
         }
 
@@ -177,53 +149,96 @@
             alloc(x, y, vx, vy) {
                 if (this.activeCount >= CONFIG.particles.maxCount) return;
                 const p = this.particles[this.head];
-                if (p.active) return;
+                if (p.active) { this.head = (this.head + 1) % this.particles.length; return; }
                 p.init(x, y, vx, vy);
                 this.head = (this.head + 1) % this.particles.length;
                 this.activeCount++;
             }
             update(dt) {
-                let deactivated = 0;
+                let off = 0;
                 for (const p of this.particles) {
-                    if (p.active) {
-                        p.update(dt);
-                        if (!p.active) deactivated++;
-                    }
+                    if (p.active) { p.update(dt); if (!p.active) off++; }
                 }
-                this.activeCount -= deactivated;
+                this.activeCount -= off;
             }
-            draw(ctx, heartCanvas) {
-                for (const p of this.particles) {
-                    if (p.active) p.draw(ctx, heartCanvas);
-                }
+            draw(ctx, img) {
+                for (const p of this.particles) if (p.active) p.draw(ctx, img);
             }
         }
 
-        // ==================== 创建渐变爱心 ====================
+        // ==================== 渐变爱心 ====================
         const createHeartImage = (size, colors) => {
-            const canvas = document.createElement('canvas');
-            canvas.width = size;
-            canvas.height = size;
-            const ctx = canvas.getContext('2d');
-
-            const gradient = ctx.createRadialGradient(size / 2, size / 2 - 5, 0, size / 2, size / 2, size / 2);
-            colors.forEach((color, i) => {
-                gradient.addColorStop(i / (colors.length - 1), color);
-            });
+            const c = document.createElement('canvas');
+            c.width = size; c.height = size;
+            const x = c.getContext('2d');
+            const g = x.createRadialGradient(size/2, size/2-5, 0, size/2, size/2, size/2);
+            colors.forEach((col, i) => g.addColorStop(i/(colors.length-1), col));
 
             const to = t => {
-                const p = new Vec2(
-                    160 * Math.pow(Math.sin(t), 3),
-                    130 * Math.cos(t) - 50 * Math.cos(2 * t) - 20 * Math.cos(3 * t) - 10 * Math.cos(4 * t) + 25
-                );
-                return new Vec2(
-                    size / 2 + p.x * size / 350,
-                    size / 2 - p.y * size / 350
-                );
+                const p = new Vec2(160*Math.pow(Math.sin(t),3), 130*Math.cos(t)-50*Math.cos(2*t)-20*Math.cos(3*t)-10*Math.cos(4*t)+25);
+                return new Vec2(size/2 + p.x*size/350, size/2 - p.y*size/350);
             };
 
-            ctx.beginPath();
-            let t = -Math.PI;
-            let pt = to(t);
-            ctx.moveTo(pt.x, pt.y);
-            while (
+            x.beginPath();
+            let t = -Math.PI, pt = to(t);
+            x.moveTo(pt.x, pt.y);
+            while (t < Math.PI) { t += 0.013; pt = to(t); x.lineTo(pt.x, pt.y); }
+            x.closePath();
+            x.fillStyle = g;
+            x.fill();
+            x.shadowColor = colors[colors.length-1];
+            x.shadowBlur = 8;
+            x.fill();
+            x.shadowBlur = 0;
+            return c;
+        };
+
+        // ==================== 主程序 ====================
+        (function() {
+            const pool = new ParticlePool();
+            const heartImg = createHeartImage(CONFIG.particles.size, CONFIG.heartGradient);
+
+            const dirs = [];
+            for (let i = 0; i < 360; i += 2) dirs.push(new Vec2(Math.cos(i*Math.PI/180), Math.sin(i*Math.PI/180)));
+
+            let lastBurst = 0;
+            const burst = (x, y) => {
+                const now = Date.now();
+                if (now - lastBurst < 50) return;
+                lastBurst = now;
+                for (let i = 0; i < CONFIG.particles.burstCount; i++) {
+                    const d = dirs[(i*137.5)%dirs.length|0].clone().scale(CONFIG.particles.velocity);
+                    d.add(new Vec2((Math.random()-0.5)*80, (Math.random()-0.5)*80));
+                    pool.alloc(x, y, d.x, d.y);
+                }
+            };
+
+            // 强制绑定事件到 canvas
+            canvas.onclick = canvas.ontouchstart = e => {
+                e.preventDefault();
+                const rect = canvas.getBoundingClientRect();
+                const x = (e.clientX || e.touches[0].clientX) - rect.left;
+                const y = (e.clientY || e.touches[0].clientY) - rect.top;
+                burst(x, y);
+            };
+
+            let lastTime = 0;
+            const render = now => {
+                if (!lastTime) lastTime = now;
+                const dt = Math.min((now - lastTime)/1000, 0.1);
+                lastTime = now;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                pool.update(dt);
+                pool.draw(ctx, heartImg);
+
+                requestAnimationFrame(render);
+            };
+
+            // 强制立即启动
+            requestAnimationFrame(render);
+            console.log('特效已启动，点击生效');
+        })();
+    </script>
+</body>
+</html>
