@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="utf-8">
-    <title>渐变爱心尾迹特效</title>
+    <title>渐变爱心尾迹特效（本地视频）</title>
     <link rel="shortcut icon" href="http://zhouql.vip/images/心.png" type="image/x-icon">
     <style>
         /* 全局重置 */
@@ -31,105 +31,41 @@
             object-fit: cover;
         }
 
-        /* 粒子画布（最上层，确保特效在最前面） */
+        /* 粒子画布（最上层） */
         canvas {
             position: fixed;
             top: 0; left: 0;
             width: 100%; height: 100%;
             z-index: 999;
-            pointer-events: auto; /* 确保可接收点击事件 */
-        }
-
-        /* 视频加载失败时的备用样式 */
-        #video1::cue {
-            display: none;
-        }
-        #fallback {
-            display: none;
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            z-index: 1;
-            background: radial-gradient(circle, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
-            animation: bgPulse 4s ease-in-out infinite;
-        }
-        @keyframes bgPulse {
-            0%, 100% { opacity: 0.8; }
-            50% { opacity: 1; }
+            pointer-events: auto;
         }
     </style>
 </head>
 <body>
 
-    <!-- 背景视频 -->
+    <!-- 背景视频（使用本地文件） -->
     <div id="main">
-        <video id="video1" muted autoplay loop playsinline
-               src="https://sns-video-hw.xhscdn.com/01e37340b5183ab501037003847a34f7ad_258.mp4?sign=e0e7bafd11769da1d62739ec9a086f13&amp;t=66180900"
-               onerror="handleVideoError(this)">
-            <source src="https://sns-video-hw.xhscdn.com/01e37340b5183ab501037003847a34f7ad_258.mp4?sign=e0e7bafd11769da1d62739ec9a086f13&amp;t=66180900" type="video/mp4">
-            视频加载失败
+        <video id="video1" muted autoplay loop playsinline>
+            <source src="./love-bg.mp4" type="video/mp4">
+            您的浏览器不支持视频播放。
         </video>
     </div>
 
-    <!-- 备用渐变背景 -->
-    <div id="fallback">
-        <canvas id="bgCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
-    </div>
-
-    <!-- 粒子特效画布（最上层） -->
+    <!-- 粒子特效画布 -->
     <canvas id="heartCanvas"></canvas>
 
     <script>
-        // ==================== 视频错误处理 ====================
-        function handleVideoError(video) {
-            console.warn('视频加载失败，使用备用背景');
-            video.style.display = 'none';
-            const fallback = document.getElementById('fallback');
-            fallback.style.display = 'block';
-            // 生成动态星空背景
-            const bgCanvas = document.getElementById('bgCanvas');
-            const bgCtx = bgCanvas.getContext('2d');
-            bgCanvas.width = window.innerWidth;
-            bgCanvas.height = window.innerHeight;
-            const stars = [];
-            for (let i = 0; i < 200; i++) {
-                stars.push({
-                    x: Math.random() * bgCanvas.width,
-                    y: Math.random() * bgCanvas.height,
-                    r: Math.random() * 2,
-                    speed: Math.random() * 0.5 + 0.1
-                });
-            }
-            function animateStars() {
-                bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
-                stars.forEach(star => {
-                    star.y += star.speed;
-                    if (star.y > bgCanvas.height) star.y = 0;
-                    bgCtx.beginPath();
-                    bgCtx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
-                    bgCtx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-                    bgCtx.fill();
-                });
-                requestAnimationFrame(animateStars);
-            }
-            animateStars();
-            window.addEventListener('resize', () => {
-                bgCanvas.width = window.innerWidth;
-                bgCanvas.height = window.innerHeight;
-            });
-        }
-
         // ==================== 可配置参数 ====================
         const CONFIG = {
             particles: {
-                maxCount: 1000,       // 增加粒子池大小，支持更多尾迹
-                burstCount: 100,      // 每次爆发的粒子数
-                duration: 2.2,        // 延长生命周期，增强尾迹效果
-                velocity: 100,        // 初始速度
-                size: 28              // 爱心大小
+                maxCount: 1000,
+                burstCount: 100,
+                duration: 2.2,
+                velocity: 100,
+                size: 28
             },
-            heartGradient: ['#ff6b6b', '#ffd93d', '#6bcf7f', '#4d96ff', '#ff6b9d'], // 渐变色数组
-            effect: -0.6             // 调整扩散加速度
+            heartGradient: ['#ff6b6b', '#ffd93d', '#6bcf7f', '#4d96ff', '#ff6b9d'],
+            effect: -0.6
         };
 
         // ==================== requestAnimationFrame 兼容 ====================
@@ -152,7 +88,7 @@
             }
         })();
 
-        // ==================== 优化向量类 ====================
+        // ==================== 向量类 ====================
         class Vec2 {
             constructor(x = 0, y = 0) {
                 this.x = x;
@@ -162,30 +98,19 @@
             len() { return Math.hypot(this.x, this.y); }
             normalize() {
                 const l = this.len();
-                if (l > 0) {
-                    this.x /= l;
-                    this.y /= l;
-                }
+                if (l > 0) { this.x /= l; this.y /= l; }
                 return this;
             }
-            scale(s) {
-                this.x *= s;
-                this.y *= s;
-                return this;
-            }
-            add(v) {
-                this.x += v.x;
-                this.y += v.y;
-                return this;
-            }
+            scale(s) { this.x *= s; this.y *= s; return this; }
+            add(v) { this.x += v.x; this.y += v.y; return this; }
         }
 
-        // ==================== 优化粒子类（支持尾迹） ====================
+        // ==================== 粒子类（带尾迹） ====================
         class Particle {
             constructor() {
                 this.reset();
-                this.trail = []; // 尾迹点数组
-                this.maxTrail = 10; // 最大尾迹长度
+                this.trail = [];
+                this.maxTrail = 10;
             }
             reset() {
                 this.pos = new Vec2();
@@ -205,29 +130,24 @@
             }
             update(dt) {
                 if (!this.active) return;
-                // 更新位置和速度
                 this.pos.x += this.vel.x * dt;
                 this.pos.y += this.vel.y * dt;
                 this.vel.x += this.vel.x * CONFIG.effect * dt;
                 this.vel.y += this.vel.y * CONFIG.effect * dt;
                 this.age += dt;
 
-                // 添加尾迹点
                 this.trail.push(this.pos.clone());
                 if (this.trail.length > this.maxTrail) this.trail.shift();
 
-                if (this.age >= CONFIG.particles.duration) {
-                    this.active = false;
-                }
+                if (this.age >= CONFIG.particles.duration) this.active = false;
             }
-            draw(ctx, heartCanvas, trailGradient) {
+            draw(ctx, heartCanvas) {
                 if (!this.active) return;
-
                 const t = this.age / CONFIG.particles.duration;
-                const ease = 1 - Math.pow(1 - t, 3); // easeOutCubic
+                const ease = 1 - Math.pow(1 - t, 3);
                 const size = heartCanvas.width * ease * 0.8;
 
-                // 绘制尾迹（渐变淡出）
+                // 尾迹
                 for (let i = 0; i < this.trail.length; i++) {
                     const trailAge = t - (i / this.maxTrail);
                     if (trailAge < 0) continue;
@@ -239,36 +159,32 @@
                     ctx.restore();
                 }
 
-                // 绘制当前爱心（渐变填充）
+                // 当前爱心
                 ctx.save();
-                const alpha = 1 - t;
-                ctx.globalAlpha = alpha;
-                const imgAlpha = alpha * 0.8;
-                ctx.globalAlpha = imgAlpha;
+                ctx.globalAlpha = (1 - t) * 0.8;
                 ctx.drawImage(heartCanvas, this.pos.x - size / 2, this.pos.y - size / 2, size, size);
                 ctx.restore();
             }
         }
 
-        // ==================== 高效粒子池（优化循环） ====================
+        // ==================== 粒子池 ====================
         class ParticlePool {
             constructor() {
                 this.particles = Array.from({ length: CONFIG.particles.maxCount }, () => new Particle());
                 this.head = 0;
-                this.activeCount = 0; // 跟踪活跃粒子数
+                this.activeCount = 0;
             }
             alloc(x, y, vx, vy) {
                 if (this.activeCount >= CONFIG.particles.maxCount) return;
                 const p = this.particles[this.head];
-                if (p.active) return; // 已占用，跳过
+                if (p.active) return;
                 p.init(x, y, vx, vy);
                 this.head = (this.head + 1) % this.particles.length;
                 this.activeCount++;
             }
             update(dt) {
                 let deactivated = 0;
-                for (let i = 0; i < CONFIG.particles.maxCount; i++) {
-                    const p = this.particles[i];
+                for (const p of this.particles) {
                     if (p.active) {
                         p.update(dt);
                         if (!p.active) deactivated++;
@@ -276,30 +192,24 @@
                 }
                 this.activeCount -= deactivated;
             }
-            draw(ctx, heartCanvas, trailGradient) {
-                for (let i = 0; i < CONFIG.particles.maxCount; i++) {
-                    const p = this.particles[i];
-                    if (p.active) {
-                        p.draw(ctx, heartCanvas, trailGradient);
-                    }
+            draw(ctx, heartCanvas) {
+                for (const p of this.particles) {
+                    if (p.active) p.draw(ctx, heartCanvas);
                 }
             }
-            getActiveCount() { return this.activeCount; }
         }
 
-        // ==================== 创建渐变爱心图像 ====================
+        // ==================== 创建渐变爱心 ====================
         const createHeartImage = (size, colors) => {
             const canvas = document.createElement('canvas');
             canvas.width = size;
             canvas.height = size;
             const ctx = canvas.getContext('2d');
 
-            // 创建径向渐变
             const gradient = ctx.createRadialGradient(size / 2, size / 2 - 5, 0, size / 2, size / 2, size / 2);
-            for (let i = 0; i < colors.length; i++) {
-                const ratio = i / (colors.length - 1);
-                gradient.addColorStop(ratio, colors[i]);
-            }
+            colors.forEach((color, i) => {
+                gradient.addColorStop(i / (colors.length - 1), color);
+            });
 
             const to = t => {
                 const p = new Vec2(
@@ -316,105 +226,4 @@
             let t = -Math.PI;
             let pt = to(t);
             ctx.moveTo(pt.x, pt.y);
-            while (t < Math.PI) {
-                t += 0.013; // 略微增大步长，优化性能
-                pt = to(t);
-                ctx.lineTo(pt.x, pt.y);
-            }
-            ctx.closePath();
-            ctx.fillStyle = gradient;
-            ctx.fill();
-
-            // 添加发光效果
-            ctx.shadowColor = colors[colors.length - 1];
-            ctx.shadowBlur = 8;
-            ctx.fill();
-            ctx.shadowBlur = 0;
-
-            return canvas; // 直接返回 canvas，不用 Image 以优化性能
-        };
-
-        // ==================== 主逻辑（优化启动） ====================
-        (function() {
-            const canvas = document.getElementById('heartCanvas');
-            const ctx = canvas.getContext('2d', { alpha: true });
-            const pool = new ParticlePool();
-
-            // 创建渐变爱心 canvas
-            const heartCanvas = createHeartImage(CONFIG.particles.size, CONFIG.heartGradient);
-            const trailGradient = ctx.createLinearGradient(0, 0, CONFIG.particles.size, CONFIG.particles.size); // 尾迹渐变
-
-            // 预计算方向（增加密度）
-            const directions = [];
-            for (let i = 0; i < 360; i += 2) {
-                const rad = i * Math.PI / 180;
-                directions.push(new Vec2(Math.cos(rad), Math.sin(rad)));
-            }
-
-            // 画布尺寸自适应（修复线上黑屏）
-            const resize = () => {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-                // 强制重绘
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-            };
-            resize();
-            window.addEventListener('resize', resize);
-
-            // 爆发特效（优化随机性）
-            const burst = (x, y) => {
-                const count = CONFIG.particles.burstCount;
-                for (let i = 0; i < count; i++) {
-                    const baseDir = directions[(i * 137.5) % directions.length | 0]; // 黄金角分布，更均匀
-                    const dir = baseDir.clone().scale(CONFIG.particles.velocity);
-                    // 增强随机扰动
-                    dir.add(new Vec2((Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80));
-                    pool.alloc(x, y, dir.x, dir.y);
-                }
-            };
-
-            // 交互事件（防抖优化）
-            let lastBurst = 0;
-            const handleInteraction = e => {
-                e.preventDefault();
-                const now = Date.now();
-                if (now - lastBurst < 50) return; // 防抖 50ms
-                lastBurst = now;
-                const rect = canvas.getBoundingClientRect();
-                const clientX = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
-                const clientY = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
-                const canvasX = clientX - rect.left;
-                const canvasY = clientY - rect.top;
-                burst(canvasX, canvasY);
-            };
-
-            canvas.addEventListener('click', handleInteraction);
-            canvas.addEventListener('touchstart', handleInteraction, { passive: false });
-
-            // 渲染循环（性能优化：限制 FPS）
-            let lastTime = 0;
-            let frameSkip = 0;
-            const render = now => {
-                if (!lastTime) lastTime = now;
-                const dt = Math.min((now - lastTime) / 1000, 0.016); // 限制 60 FPS
-                lastTime = now;
-                frameSkip++;
-                if (frameSkip % 2 !== 0 && pool.getActiveCount() > 50) { // 低粒子时全速，高时跳帧
-                    requestAnimationFrame(render);
-                    return;
-                }
-
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                pool.update(dt);
-                pool.draw(ctx, heartCanvas, trailGradient);
-
-                requestAnimationFrame(render);
-            };
-
-            // 立即启动（移除 onload 延迟）
-            requestAnimationFrame(render);
-            console.log('爱心特效已启动');
-        })();
-    </script>
-</body>
-</html>
+            while (
